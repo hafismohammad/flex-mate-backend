@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, model } from "mongoose";
+import mongoose, { Schema, Document, model, models } from "mongoose";
 
 // Interface for VideoCall
 export interface IVideoCall extends Document {
@@ -26,6 +26,6 @@ const VideoCallSchema: Schema = new Schema(
 );
 
 // Model for VideoCall
-export const VideoCallModel = model<IVideoCall>('VideoCall', VideoCallSchema);
+export const VideoCallModel = models.VideoCall ||  model<IVideoCall>('VideoCall', VideoCallSchema);
 
 export default VideoCallModel;

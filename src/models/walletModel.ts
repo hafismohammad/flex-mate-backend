@@ -1,4 +1,4 @@
-import {Document, Schema, model} from 'mongoose'
+import {Document, Schema, model, models} from 'mongoose'
 
 export interface ITransaction {
     amount: number;
@@ -33,6 +33,6 @@ const walletSchema = new Schema<IWallet>(
     { timestamps: true }
   );
 
-  export const WalletModel = model<IWallet>('Wallet',walletSchema);
+  export const WalletModel = models.Wallet || model<IWallet>('Wallet',walletSchema);
 
 export default WalletModel;

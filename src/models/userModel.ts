@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, model , models} from "mongoose";
 import { IUser } from '../interface/common';
 
 // Create the user schema
@@ -17,5 +17,5 @@ const userSchema = new Schema<IUser>(
 );
 
 // Export the User model
-const UserModel = model<IUser>("User", userSchema);
+const UserModel = models.User || model<IUser>("User", userSchema);
 export default UserModel;

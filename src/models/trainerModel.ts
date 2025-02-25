@@ -1,4 +1,4 @@
-import { Schema, model, Types } from 'mongoose';
+import { Schema, model, models } from 'mongoose';
 import { ITrainer } from '../interface/trainer_interface';
 
 const trainerSchema = new Schema<ITrainer>({
@@ -18,5 +18,5 @@ const trainerSchema = new Schema<ITrainer>({
   isBlocked: { type: Boolean, default: false },
 }, { timestamps: true });
 
-const TrainerModel = model<ITrainer>('Trainer', trainerSchema);  
+const TrainerModel = models.Trainer  || model<ITrainer>('Trainer', trainerSchema);  
 export default TrainerModel;
