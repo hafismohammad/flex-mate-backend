@@ -1,16 +1,20 @@
 import sendMail from "../config/email_config";
-import AdminRepository from "../repositories/adminRepository";
+import { IAdminLoginResponse, ILoginAdmin } from "../interface/admin_interface";
+import { IBooking } from "../interface/common";
+import { IKYC, ISpecialization } from "../interface/trainer_interface";
+// import AdminRepository from "../repositories/adminRepository";
+import { IAdminRepository } from "../interface/admin/Admin.repository.interface";
 import {generateAccessToken, generateRefreshToken, verifyRefreshToken} from '../utils/jwtHelper'
 
 class AdminService {
-  private adminRepository: AdminRepository;
+  private adminRepository: IAdminRepository;
 
-  constructor(adminRepository: AdminRepository) {
+  constructor(adminRepository: IAdminRepository) {
 
     this.adminRepository = adminRepository;
   }
 
-  async adminLogin({ email, password }: { email: string; password: string }) {
+  async adminLogin({ email, password }: { email: string; password: string }): Promise<any> {
     try {
       const adminData = await this.adminRepository.findAdmin(email);
       if (adminData) {
@@ -35,7 +39,7 @@ class AdminService {
     }
   }
 
-  async generateTokn(admin_refresh_token: string) {
+  async generateTokn(admin_refresh_token: string): Promise<string> {
     try {
       const payload = verifyRefreshToken(admin_refresh_token);
       let id: string | undefined;
@@ -57,12 +61,12 @@ class AdminService {
     }
   }
 
-  async addSpecialization(specializationData: { name: string, description: string }, imageUrl: string | null) {
+  async addSpecialization(specializationData: { name: string, description: string }, imageUrl: string | null): Promise<any>  {
     const specialization = await this.adminRepository.addSpecialization({ ...specializationData, image: imageUrl  });
     return specialization;
   }
 
-  async TraienrsKycData() {
+  async TraienrsKycData(): Promise<IKYC[]>  {
     try {
       const allTrainersKycDatas = await this.adminRepository.getAllTrainersKycDatas();
       return allTrainersKycDatas; 
@@ -72,7 +76,7 @@ class AdminService {
     }
   }
 
-  async fetchKycData(trainerId: string) {
+  async fetchKycData(trainerId: string): Promise<IKYC | null> {
     try {
       return await this.adminRepository.fetchKycData(trainerId);
     } catch (error) {
@@ -100,34 +104,34 @@ class AdminService {
   }
   
 
-  async getAllSpecializations() {
+  async getAllSpecializations(): Promise<ISpecialization[]> {
     const specializations = await this.adminRepository.getAllSpecializations()    
     return specializations
   }
 
-  async updateSpecStatus(spec_id: string, status: boolean) {
+  async updateSpecStatus(spec_id: string, status: boolean): Promise<ISpecialization | null> {
     return await this.adminRepository.updateSpecStatus(spec_id, status)
   }
   
-  async fetchAllUsers() {
+  async fetchAllUsers(): Promise<ILoginAdmin[]> {
     return await this.adminRepository.fetchAllUsers()
   }
-  async fetchAllTrainer() {
+  async fetchAllTrainer(): Promise<ILoginAdmin[]> {
     return await this.adminRepository.fetchAllTrainer()
   }
 
-  async updateUserStatus(user_id: string, userStatus: boolean) {
+  async updateUserStatus(user_id: string, userStatus: boolean): Promise<any>  {
     return await this.adminRepository.updateUserStatus(user_id, userStatus)
   }
-  async updateTrainerStatus(trainer_id: string, trainerStatus: boolean) {
+  async updateTrainerStatus(trainer_id: string, trainerStatus: boolean): Promise<any>  {
     return await this.adminRepository.updateTrainerStatus(trainer_id, trainerStatus)
   }
 
-  async getAllBookings() {
+  async getAllBookings(): Promise<IBooking[]>  {
     return await this.adminRepository.fetchAllBookings()
   }
 
-  async getDashboardData() {
+  async getDashboardData(): Promise<any>  {
     try {
       return await this.adminRepository.getAllStatistics()
     } catch (error: any) {

@@ -25,7 +25,7 @@ router.patch('/profile-image/:user_id', authMiddlewares(['user']), upload.single
 
 // Trainer and Specializations Routes
 router.get("/trainers", userController.getAllTrainers.bind(userController));
-router.get("/specializations", userController.getAllspecializations.bind(userController)); 
+router.get("/specializations", userController.getAllSpecializations.bind(userController)); 
 router.get("/trainers/:trainer_id", userController.getTrainer.bind(userController)); 
 
 // Session and Booking Routes

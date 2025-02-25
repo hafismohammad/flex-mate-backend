@@ -6,7 +6,7 @@ export interface IUser {
   name: string;
   email: string;
   phone: number;
-  password: string;
+  password?: string;
   dob?: string;
   image?: string;
   gender?: string;
@@ -47,12 +47,26 @@ export interface IBooking {
     sessionCompletionTime?: Date
   }
 
+  export interface ISessionSchedule {
+    _id: mongoose.Types.ObjectId;
+    isSingleSession: boolean;  
+    startDate: Date;
+    endDate: Date;
+    startTime: string;
+    endTime: string;
+    price?: number; 
+    duration?: number; 
+    status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | 'InProgress'; 
+    trainerId: mongoose.Types.ObjectId; 
+  }
+  
+
   export interface IVideoCall extends Document {
     trainerId: string
     userId:string
     roomId: string;
     startedAt: Date;
-    duration: number; // in seconds
+    duration: number; 
     endedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -66,9 +80,11 @@ export  interface IReview {
 }
 export interface INotificationContent {
   content: string;
-  bookingId: mongoose.Types.ObjectId;
+  // bookingId: mongoose.Types.ObjectId;
+  bookingId?: mongoose.Types.ObjectId | string | null;
   read: boolean;
   createdAt: Date;
+  // bookingId?: string | null;
 }
 
 export interface INotification {
@@ -81,10 +97,8 @@ export interface IPrescriptionInfo {
   sessionId: {
     _id: string;
     completedSessions: number;
-    // other fields from the session schema
   };
   sessionType: string;
   startDate: string;
   endDate: string;
-  // other fields from the prescription schema
 }

@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import AdminService from "../services/adminService";
+// import AdminService from "../services/adminService";
+import { IAdminService } from "../interface/admin/Admin.service.interface";
 import { ILoginAdmin } from "../interface/admin_interface";
 import { uploadToCloudinary } from '../config/cloudinary'
 
 class AdminController {
-  private adminService: AdminService;
+  private adminService: IAdminService;
 
-  constructor(adminService: AdminService) {
+  constructor(adminService: IAdminService) {
     this.adminService = adminService;
   }
 

@@ -1,16 +1,17 @@
 import { Request, Response, NextFunction } from "express";
-import UserService from "../services/userService";
+// import UserService from "../services/userService";
+import {IUserService} from '../../src/interface/user/User.service.interface'
 import { IUser, ILoginUser } from "../interface/common";
 import { uploadToCloudinary } from "../config/cloudinary";
 
 class UserController {
-  private userService: UserService;
+  private userService: IUserService;
 
-  constructor(userService: UserService) {
+  constructor(userService: IUserService) {
     this.userService = userService;
   }
 
-  async register(req: Request, res: Response, next: NextFunction) {
+  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userData: IUser = req.body;
       await this.userService.register(userData);
@@ -57,7 +58,7 @@ class UserController {
     }
   }
 
-  async refreshToken(req: Request, res: Response, next: NextFunction) {
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     const refresh_token = req.cookies?.refresh_token;
     if (!refresh_token) {
       res.status(403).json({ message: "Refresh token not found" });
@@ -72,7 +73,7 @@ class UserController {
     }
   }
 
-  async verifyOtp(req: Request, res: Response, next: NextFunction) {
+  async verifyOtp(req: Request, res: Response, next: NextFunction):  Promise<void> {
     try {
       const { userData, otp } = req.body;
       await this.userService.verifyOTP(userData, otp);
@@ -136,34 +137,37 @@ class UserController {
     }
   }
 
-  async getAllspecializations(req: Request, res: Response, next: NextFunction) {
+  async getAllSpecializations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const allSpecializations = await this.userService.specializations();
       res.status(200).json(allSpecializations);
     } catch (error) {
-      console.error("Error fetching trainers:", error);
+      console.error("Error fetching specializations:", error);
       next(error);
     }
   }
+  
 
-  async getTrainer(req: Request, res: Response, next: NextFunction) {
+  async getTrainer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const trainerId = req.params.trainer_id;
-      if (!trainerId) {
-        res.status(400).json({ message: "Trainer ID is required" });
-      }
-      const trainer = await this.userService.getTrainer(trainerId);
-      if (!trainer) {
-        res.status(404).json({ message: "Trainer not found" });
-      }
-      res.status(200).json(trainer);
+        const trainerId = req.params.trainer_id;
+        if (!trainerId) {
+             res.status(400).json({ message: "Trainer ID is required" });
+        }
+        
+        const trainer = await this.userService.getTrainer(trainerId);
+        if (!trainer) {
+             res.status(404).json({ message: "Trainer not found" });
+        }
+         res.status(200).json(trainer); 
     } catch (error) {
-      console.error("Error in getTrainer controller:", error);
-      next(error);
+        console.error("Error in getTrainer controller:", error);
+        next(error);
     }
-  }
+}
 
-  async getSessionSchedules(req: Request, res: Response, next: NextFunction) {
+
+  async getSessionSchedules(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const sessionSchedules = await this.userService.getSessionSchedules();
       res.status(200).json(sessionSchedules);
@@ -172,23 +176,23 @@ class UserController {
     }
   }
 
-  async checkoutPayment(req: Request, res: Response, next: NextFunction) {
+  async checkoutPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.body.userData.id;
       const session_id = req.params.session_id;
 
-      const paymentResponse = await this.userService.checkoutPayment(
+      const  { id }  = await this.userService.checkoutPayment(
         session_id,
         userId
       );
-      res.status(200).json({ id: paymentResponse.id });
+      res.status(200).json({ id});
     } catch (error) {
       console.error("Error in checkoutPayment:", error);
       next(error);
     }
   }
 
-  async createBooking(req: Request, res: Response, next: NextFunction) {
+  async createBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { sessionId, userId, stripe_session_id } = req.body;
       const bookingDetails = await this.userService.findBookingDetails(
@@ -203,7 +207,7 @@ class UserController {
     }
   }
 
-  async getUser(req: Request, res: Response, next: NextFunction) {
+  async getUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.params.user_id;
       const userData = await this.userService.fetchUserData(userId);
@@ -214,7 +218,7 @@ class UserController {
     }
   }
 
-  async updateUserData(req: Request, res: Response, next: NextFunction) {
+  async updateUserData(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userData = req.body;
       const userId = req.body._id;
@@ -225,7 +229,7 @@ class UserController {
     }
   }
 
-  async uploadProfileImage(req: Request, res: Response, next: NextFunction) {
+  async uploadProfileImage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const user_id = req.params.user_id;
       if (req.file) {
@@ -249,7 +253,7 @@ class UserController {
     }
   }
 
-  async getAllBookings(req: Request, res: Response, next: NextFunction) {
+  async getAllBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const user_id = req.params.user_id;
       const bookings = await this.userService.getAllBookings(user_id);
@@ -258,7 +262,7 @@ class UserController {
       next(error);
     }
   }
-  async cancelBooking(req: Request, res: Response, next: NextFunction) {
+  async cancelBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { booking_id } = req.params;
       const cancelNotification = await this.userService.cancelBooking(
@@ -275,7 +279,7 @@ class UserController {
     }
   }
 
-  async addReview(req: Request, res: Response, next: NextFunction) {
+  async addReview(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { reviewComment, selectedRating, userId, trainerId } = req.body;
       const response = await this.userService.addReview(
@@ -294,7 +298,7 @@ class UserController {
     }
   }
 
-  async editReview(req: Request, res: Response, next: NextFunction) {
+  async editReview(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { reviewComment, selectedRating, userReviewId } = req.body;
       const response = await this.userService.editReview(
@@ -308,7 +312,7 @@ class UserController {
     }
   }
 
-  async getReivew(req: Request, res: Response, next: NextFunction) {
+  async getReivew(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { trainer_id } = req.params;
       const reviews = await this.userService.reviews(trainer_id);
@@ -318,10 +322,10 @@ class UserController {
     }
   }
 
-  async getReivewSummary(req: Request, res: Response, next: NextFunction) {
+  async getReivewSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { trainer_id } = req.params;
-      const reviewsAndAvgRating = await this.userService.getReivewSummary(
+      const reviewsAndAvgRating = await this.userService.getReviewSummary(
         trainer_id
       );
       res.status(200).json(reviewsAndAvgRating);
@@ -330,7 +334,7 @@ class UserController {
     }
   }
 
-  async findbookings(req: Request, res: Response, next: NextFunction) {
+  async findbookings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { user_id, trainer_id } = req.params;
       const bookingStatus = await this.userService.findBookings(
@@ -343,7 +347,7 @@ class UserController {
     }
   }
 
-  async getNotifications(req: Request, res: Response, next: NextFunction) {
+  async getNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { user_id } = req.params;
       const notifications = await this.userService.getNotifications(user_id);
@@ -353,7 +357,7 @@ class UserController {
     }
   }
 
-  async clearNotifications(req: Request, res: Response, next: NextFunction) {
+  async clearNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { user_id } = req.params;
       await this.userService.clearNotifications(user_id);
@@ -363,7 +367,7 @@ class UserController {
     }
   }
 
-  async resetPassword(req: Request, res: Response, next: NextFunction) {
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { user_id } = req.params;
       const { currentPassword, newPassword } = req.body;

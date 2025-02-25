@@ -6,8 +6,9 @@ import UserModel from "../models/userModel";
 import KycRejectionReasonModel from "../models/kycRejectionReason";
 import BookingModel from "../models/booking";
 import { MonthlyStats } from "../interface/admin_interface";
+import { IAdminRepository } from "../interface/admin/Admin.repository.interface";
 
-class AdminRepository {
+class AdminRepository implements IAdminRepository {
   private adminModel = AdminModel;
   private specializationModel = SpecializationModel
   private kycModel = KYCModel
@@ -15,7 +16,7 @@ class AdminRepository {
   private userModel = UserModel
   private kycRejectionReasonModel = KycRejectionReasonModel
 
-  async findAdmin(email: string) {
+  async findAdmin(email: string) : Promise<Document | null> {
     try {
       return await this.adminModel.findOne({ email });
     } catch (error) {
@@ -24,7 +25,7 @@ class AdminRepository {
     }
   }
 
-  async addSpecialization({ name, description, image }: { name: string; description: string; image: string | null }) {
+  async addSpecialization({ name, description, image }: { name: string; description: string; image: string | null }): Promise<Document> {
     try {
         return await this.specializationModel.create({ name, description, image });
     } catch (error) {
@@ -34,7 +35,7 @@ class AdminRepository {
   }
 
 
-  async getAllTrainersKycDatas() {
+  async getAllTrainersKycDatas(): Promise<Document[]> {
     return await this.trainerModel.aggregate([
       {
         $lookup: {
@@ -61,7 +62,7 @@ class AdminRepository {
     ]);
   }
 
-  async fetchKycData(trainerId: string) {
+  async fetchKycData(trainerId: string): Promise<any> {
     try {
       const kycData = await KYCModel.findOne({ trainerId }).populate('specializationId').populate('trainerId')
       return kycData
@@ -124,7 +125,7 @@ class AdminRepository {
     }
   }
 
-  async deleteKyc(trainer_id: string) {
+  async deleteKyc(trainer_id: string): Promise<void> {
     try {
       const result = await this.kycModel.findOneAndDelete({ trainerId: trainer_id });
       if (result) {
@@ -137,11 +138,11 @@ class AdminRepository {
     }
   }
   
-  async getAllSpecializations() {
+  async getAllSpecializations(): Promise<Document[]> {
     return await this.specializationModel.find()
   }
   
-  async updateSpecStatus(spec_id: string, status: boolean) {
+  async updateSpecStatus(spec_id: string, status: boolean): Promise<Document | null>  {
     return await this.specializationModel.findByIdAndUpdate(
      { _id: spec_id},
      { isListed: status},
@@ -149,17 +150,17 @@ class AdminRepository {
     )
   }
 
-  async fetchAllUsers() {
+  async fetchAllUsers() : Promise<Document[]>{
     return await this.userModel.find()
   }
-  async fetchAllTrainer() {
+  async fetchAllTrainer() : Promise<any>{
     
     const trainers =  await this.trainerModel.find().populate('specializations')
-    console.log('trainers', trainers);
+    // console.log('trainers', trainers);
     
     return trainers
   }
-  async updateUserStatus(user_id: string, userStatus: boolean) {
+  async updateUserStatus(user_id: string, userStatus: boolean): Promise<Document | null>  {
    return  await this.userModel.findByIdAndUpdate(
       {_id: user_id},
       {isBlocked: userStatus},
@@ -168,7 +169,7 @@ class AdminRepository {
     
   }
 
-  async updateTrainerStatus(trainer_id: string, trainerStatus: boolean) {
+  async updateTrainerStatus(trainer_id: string, trainerStatus: boolean): Promise<Document | null>  {
    return  await this.trainerModel.findByIdAndUpdate(
       {_id: trainer_id},
       {isBlocked: trainerStatus},
@@ -191,7 +192,7 @@ class AdminRepository {
     }
   }
 
-  async fetchAllBookings() {
+  async fetchAllBookings() : Promise<Document[]>{
     try {
       const allBookings = await BookingModel.aggregate([
         {
@@ -282,7 +283,7 @@ class AdminRepository {
     }
   }
 
-  async getAllStatistics() {
+  async getAllStatistics() : Promise<any>  {
     const totalTrainers = await this.trainerModel.countDocuments();
     const totalUsers = await this.userModel.countDocuments();
     const activeUsers = await this.userModel.countDocuments({ isBlocked: false });

@@ -3,6 +3,17 @@ export interface ILoginAdmin {
     password: string;
   }
 
+  export interface IAdminLoginResponse {
+    accessToken: string;
+    refreshToken: string;
+    admin: {
+      id: string;
+      email: string;
+      password: string;
+    };
+  }
+  
+
   export interface ISpecialization extends Document {
     name: string;
     description: string;
@@ -12,10 +23,12 @@ export interface ILoginAdmin {
   }
 
   export interface MonthlyStats {
-    users: number;         // Number of registered users in the month
-    trainer: number;       // Number of registered doctors in the month
-    revenue: number;       // Total revenue for the month
-    amount: number;     // Total fees collected for completed appointments
-    trainerRevenue: number; // Revenue credited to doctors
+    users: number;       
+    trainer: number;     
+    revenue: number;     
+    amount: number;     
+    trainerRevenue: number;
     adminRevenue: number;
   }
+
+

@@ -1,5 +1,6 @@
 // trainerServices.ts
-import TrainerRepository from "../repositories/trainerRepository";
+// import TrainerRepository from "../repositories/trainerRepository";
+import {ITrainerRepository} from '../../src/interface/trainer/Trainer.repository.interface'
 import { ITrainer } from "../interface/trainer_interface";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken,} from "../utils/jwtHelper";
 import sendOTPmail from "../config/email_config";
@@ -9,17 +10,18 @@ import { createRecurringSessions } from "../utils/slotHelper";
 import { deleteFromCloudinary, uploadToCloudinary } from "../config/cloudinary";
 import { differenceInMinutes } from 'date-fns';
 import moment from "moment";
+import { IBooking, IUser } from '../interface/common';
 
 class TrainerService {
-  private trainerRepository: TrainerRepository;
+  private trainerRepository: ITrainerRepository;
   private OTP: string | null = null;
   private expiryOTP_time: Date | null = null;
 
-  constructor(trainerRepository: TrainerRepository) {
+  constructor(trainerRepository: ITrainerRepository) {
     this.trainerRepository = trainerRepository;
   }
 
-  async findAllSpecializations() {
+  async findAllSpecializations(): Promise<any[]>  {
     try {
       return await this.trainerRepository.findAllSpecializations();
     } catch (error) {
@@ -28,7 +30,7 @@ class TrainerService {
     }
   }
 
-  async registerTrainer(trainerData: ITrainer) {
+  async registerTrainer(trainerData: ITrainer): Promise<{ email: string } | null> {
     try {
       const existingTrainer = await this.trainerRepository.existsTrainer(
         trainerData.email
@@ -56,49 +58,54 @@ class TrainerService {
     }
   }
 
-  async verifyOTP(trainerData: ITrainer, otp: string): Promise<void> {
-    try {
-      const validOtps = await this.trainerRepository.getOtpsByEmail(
-        trainerData.email
-      );
-      if (validOtps.length === 0) {
-        console.log("No OTP found for this email");
-        throw new Error("No OTP found for this email");
-      }
-      const latestOtp = validOtps.sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-      if (latestOtp.otp === otp) {
-        if (latestOtp.expiresAt > new Date()) {
-          console.log("OTP is valid and verified", latestOtp.expiresAt);
-          const specializationIds = await this.trainerRepository.findTrainerSpecializations(
-            trainerData.specializations 
-          );
-          if (!specializationIds || specializationIds.length !== trainerData.specializations.length) {
-            throw new Error("One or more specializations not found");
-          }
-          const hashedPassword = await bcrypt.hash(trainerData.password, 10);
-          const newTrainerData: ITrainer = {
-            ...trainerData,
-            password: hashedPassword,
-            specializations: specializationIds, 
-          };
-          await this.trainerRepository.createNewTrainer(newTrainerData);
-          await this.trainerRepository.deleteOtpById(latestOtp._id);
-        } else {
-          console.log("OTP has expired");
-          await this.trainerRepository.deleteOtpById(latestOtp._id);
-          throw new Error("OTP has expired");
-        }
-      } else {
-        console.log("Invalid OTP");
-        throw new Error("Invalid OTP");
-      }
-    } catch (error) {
-      const errorMessage = (error as Error).message || "An unknown error occurred";
-      console.error("Error in OTP verification:", errorMessage);
-      throw error;
+async verifyOTP(trainerData: ITrainer, otp: string): Promise<void> {
+  try {
+    const validOtps = await this.trainerRepository.getOtpsByEmail(
+      trainerData.email
+    );
+    if (validOtps.length === 0) {
+      console.log("No OTP found for this email");
+      throw new Error("No OTP found for this email");
     }
+    const latestOtp = validOtps.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    
+    // Convert ObjectId to string if it's an ObjectId
+    const otpId = typeof latestOtp._id === 'object' ? latestOtp._id.toString() : latestOtp._id;
+
+    if (latestOtp.otp === otp) {
+      if (latestOtp.expiresAt > new Date()) {
+        console.log("OTP is valid and verified", latestOtp.expiresAt);
+        const specializationIds = await this.trainerRepository.findTrainerSpecializations(
+          trainerData.specializations 
+        );
+        if (!specializationIds || specializationIds.length !== trainerData.specializations.length) {
+          throw new Error("One or more specializations not found");
+        }
+        const hashedPassword = await bcrypt.hash(trainerData.password, 10);
+        const newTrainerData: ITrainer = {
+          ...trainerData,
+          password: hashedPassword,
+          specializations: specializationIds, 
+        };
+        await this.trainerRepository.createNewTrainer(newTrainerData);
+        await this.trainerRepository.deleteOtpById(otpId as string);
+      } else {
+        console.log("OTP has expired");
+        await this.trainerRepository.deleteOtpById(otpId as string);
+        throw new Error("OTP has expired");
+      }
+    } else {
+      console.log("Invalid OTP");
+      throw new Error("Invalid OTP");
+    }
+  } catch (error) {
+    const errorMessage = (error as Error).message || "An unknown error occurred";
+    console.error("Error in OTP verification:", errorMessage);
+    throw error;
   }
+}
+
 
   async resendOTP(email: string): Promise<void> {
     try {
@@ -120,7 +127,7 @@ class TrainerService {
     }
   }
 
-  async trainerLogin({ email, password }: { email: string; password: string }) {
+  async trainerLogin({ email, password }: { email: string; password: string }): Promise<any> {
     try {
       const trainerData = await this.trainerRepository.findTrainer(email);
       if (trainerData && trainerData._id) {
@@ -143,6 +150,8 @@ class TrainerService {
           id: trainerData._id.toString(),
           email: trainerData.email,
         });
+        // console.log(accessToken, refreshToken);
+        
         return {
           accessToken,
           refreshToken,
@@ -162,7 +171,7 @@ class TrainerService {
     }
   }
 
-  async generateTokn(trainer_refresh_token: string) {
+  async generateTokn(trainer_refresh_token: string): Promise<string> {
     try {
       const payload = verifyRefreshToken(trainer_refresh_token);
 
@@ -239,7 +248,7 @@ class TrainerService {
     }
   }
   
-  async kycStatus(trainerId: string) {
+  async kycStatus(trainerId: string): Promise<any>  {
     try {
       const kycStatus = await this.trainerRepository.getTrainerStatus(
         trainerId
@@ -251,10 +260,10 @@ class TrainerService {
     }
   }
 
-  async updateKycStatus(trainerId: string) {
+  async updateKycStatus(trainerId: string): Promise<any>  {
     return await this.trainerRepository.updateKycStatus(trainerId);
   }
-  async findTrainer(trainer_id: string) {
+  async findTrainer(trainer_id: string): Promise<ITrainer | null>  {
     try {
       return await this.trainerRepository.fetchTrainer(trainer_id);
     } catch (error: any) {
@@ -262,7 +271,7 @@ class TrainerService {
     }
   }
 
-  async fetchTrainer(trainer_id: string) {
+  async fetchTrainer(trainer_id: string): Promise<any> {
     return await this.trainerRepository.getTrainerProfile(trainer_id)
   }
 
@@ -310,7 +319,7 @@ class TrainerService {
     }
   }
 
-  async fetchSpec(trainer_id: string) {
+  async fetchSpec(trainer_id: string): Promise<ISession[]>  {
     return this.trainerRepository.fetchSpec(trainer_id)
   }
 
@@ -322,7 +331,7 @@ class TrainerService {
     }
   }
 
-  async AddNewSession(sessionData: ISession, recurrenceOption: string) {
+  async AddNewSession(sessionData: ISession, recurrenceOption: string): Promise<ISession | ISession[]>  {
     try {
       const startTimeInput = sessionData.startTime;
       const endTimeInput = sessionData.endTime;
@@ -339,6 +348,7 @@ class TrainerService {
       }
       if (recurrenceOption === 'oneWeek' || recurrenceOption === 'twoWeek') {
         const recurringSessions = await createRecurringSessions(sessionData.startDate, recurrenceOption, sessionData);
+       
         return await this.trainerRepository.createMultipleSessions(recurringSessions);
       } else {
         return await this.trainerRepository.createNewSession(sessionData);
@@ -360,7 +370,7 @@ class TrainerService {
     }
   }
 
-  async getSessionShedules(trainer_id: string) {
+  async getSessionSchedules(trainer_id: string): Promise<ISession[]>  {
     try {
       return await this.trainerRepository.fetchSessionData(trainer_id)
     } catch (error) {
@@ -368,7 +378,7 @@ class TrainerService {
     }
   }
 
-  async deleteSession(session_id: string) {
+  async deleteSession(session_id: string): Promise<boolean>  {
     try {
       return await this.trainerRepository.deleteSession(session_id);
     } catch (error) {
@@ -376,7 +386,7 @@ class TrainerService {
     }
   }
 
-  async getBookingDetails(trainer_id: string) {
+  async getBookingDetails(trainer_id: string): Promise<IBooking[]>  {
     try {
       return await this.trainerRepository.fetchBookingDetails(trainer_id);
     } catch (error) {
@@ -384,15 +394,15 @@ class TrainerService {
     }
   }
 
-  async fetchUser(userId: string) {
+  async fetchUser(userId: string): Promise<IUser |null> {
     return await this.trainerRepository.fetchUeserDetails(userId)
   }
   
-  async getWallet(trainer_id: string) {
+  async getWallet(trainer_id: string): Promise<any>  {
     return await this.trainerRepository.fetchWalletData(trainer_id)
   }
 
-  async withdraw (trainer_id:string, amount: number)  {
+  async withdraw (trainer_id:string, amount: number) : Promise<boolean>  {
     try {
       return await this.trainerRepository.withdrawMoney(trainer_id, amount)
     } catch (error: any) {
@@ -400,7 +410,7 @@ class TrainerService {
     }
   }
 
-  async addPrescription(bookingId: string, prescription: string) {
+  async addPrescription(bookingId: string, prescription: string): Promise<any> {
     try {
       const prescriptionInfo = await this.trainerRepository.addPrescription(bookingId, prescription);
       if (prescriptionInfo?.sessionType === 'Single Session') {
@@ -433,7 +443,7 @@ class TrainerService {
     }
   }
   
-  async getNotifications(trainerId: string) {
+  async getNotifications(trainerId: string): Promise<any> {
     try {
       return await this.trainerRepository.fetchNotifications(trainerId)
     } catch (error) {
@@ -441,7 +451,7 @@ class TrainerService {
     }
    }
 
-   async clearNotifications(trainerId: string) {
+   async clearNotifications(trainerId: string): Promise<any>  {
     try {
       return await this.trainerRepository.deleteTrainerNotifications(trainerId)
     } catch (error) {
@@ -449,7 +459,7 @@ class TrainerService {
     }
    }
 
-   async updatePrescription(bookingId: string, newPrescription: string) {
+   async updatePrescription(bookingId: string, newPrescription: string): Promise<any> {
     try {
       const bookingDetails = await this.trainerRepository.fetchUserBooking(bookingId);
   
@@ -482,7 +492,7 @@ class TrainerService {
     }
   }
   
-  async getBooking(bookingId: string) {
+  async getBooking(bookingId: string): Promise<any>  {
     return await this.trainerRepository.fetchUserBooking(bookingId)
   }
 

@@ -7,11 +7,12 @@ import SpecializationModel from "../models/specializationModel";
 import SessionModel from "../models/sessionModel";
 import BookingModel from "../models/booking";
 import { User } from "../interface/user_interface";
-import { ISpecialization } from "../interface/trainer_interface";
+import { ISpecialization, ITrainer } from "../interface/trainer_interface";
 import ReviewModel from "../models/reviewMolel";
 import NotificationModel from "../models/notificationModel";
+import { IUserRepository } from "../interface/user/User.respository.interface";
 
-class UserRepository {
+class UserRepository implements IUserRepository {
   private userModel = UserModel;
   private otpModel = OtpModel;
   private trainerModel = TrainerModel;
@@ -62,7 +63,7 @@ class UserRepository {
     }
   }
 
-  async deleteOtpById(otpId?: mongoose.Types.ObjectId): Promise<void> {
+  async deleteOtpById(otpId: mongoose.Types.ObjectId): Promise<void> {
     try {
       if (!otpId) {
         throw new Error("OTP ID is undefined");
@@ -84,7 +85,7 @@ class UserRepository {
     }
   }
 
-  async fetchAllTrainers() {
+  async fetchAllTrainers(): Promise<ITrainer[]> {
     try {
       const trainers = await this.trainerModel
         .find({})
@@ -95,26 +96,28 @@ class UserRepository {
     }
   }
 
-  async fetchSpecializations() {
-    try {
-      const data = await this.specializationModel.find({});
-      return data;
-    } catch (error) {
-      console.error("Error fetching specializations from the database:", error);
-      throw error;
-    }
+ async fetchSpecializations(): Promise<ISpecialization[]> {
+  try {
+    const data = await this.specializationModel.find({}).lean();
+    return data;
+  } catch (error) {
+    console.error("Error fetching specializations from the database:", error);
+    throw error;
   }
+}
 
-  async getTrainer(trainerId: string) {
-    try {
-      const trainer = await this.trainerModel
-        .find({ _id: trainerId })
-        .populate("specializations");
-      return trainer;
-    } catch (error) {}
+
+async getTrainer(trainerId: string): Promise<ITrainer | null> {
+  try {
+    return await this.trainerModel.findOne({ _id: trainerId }).populate("specializations");
+  } catch (error) {
+    console.error("Error fetching trainer:", error);
+    return null;
   }
+}
 
-  async fetchAllSessionSchedules() {
+
+  async fetchAllSessionSchedules(): Promise<any>  {
     try {
       const schedules = await this.sessionModel
         .find({})
@@ -131,13 +134,13 @@ class UserRepository {
     return result.deletedCount || 0;
   }
 
-  async findSessionDetails(session_id: string) {
+  async findSessionDetails(session_id: string): Promise<any | null>  {
     return await this.sessionModel
       .findById(session_id)
       .populate<{ specializationId: ISpecialization }>("specializationId");
   }
 
-  async findTrainerDetails(trainer_id: string) {
+  async findTrainerDetails(trainer_id: string): Promise<any | null> {
     const trainerData = await this.trainerModel.aggregate([
       { $match: { _id: new mongoose.Types.ObjectId(trainer_id) } },
       {
@@ -185,7 +188,7 @@ class UserRepository {
     }
   }
 
-  async findExistingBooking(bookingDetails: IBooking) {
+  async findExistingBooking(bookingDetails: IBooking): Promise<IBooking | null> {
     try {
       const existingBooking = await this.bookingModel.findOne({
         sessionId: bookingDetails.sessionId,
@@ -202,7 +205,7 @@ class UserRepository {
     }
   }
 
-  async createBooking(bookingDetails: IBooking) {
+  async createBooking(bookingDetails: IBooking): Promise<IBooking>  {
     try {
       const newBooking = await this.bookingModel.create(bookingDetails);
       return newBooking;
@@ -212,7 +215,7 @@ class UserRepository {
     }
   }
 
-  async createNotification(bookingDetails: IBooking) {
+  async createNotification(bookingDetails: IBooking): Promise<void> {
     try {
       if (!bookingDetails.trainerId || !bookingDetails.userId) {
         throw new Error("Trainer ID or User ID is missing.");
@@ -273,7 +276,7 @@ class UserRepository {
     }
   }
 
-  async fetchUser(userId: string) {
+  async fetchUser(userId: string): Promise<IUser | null> {
     try {
       const userData = await this.userModel.findById(userId);
       return userData;
@@ -282,7 +285,7 @@ class UserRepository {
     }
   }
 
-  async updateUser(userdata: User, userId: string) {
+  async updateUser(userdata: IUser, userId: string): Promise<IUser | null> {
     try {
       const updatedUser = await this.userModel.findByIdAndUpdate(
         { _id: userId },
@@ -296,7 +299,7 @@ class UserRepository {
     }
   }
 
-  async uploadPfileImage(imagUrl: string, user_id: string) {
+  async uploadPfileImage(imagUrl: string, user_id: string): Promise<any>  {
     try {
       const profileImageUpdate = await this.userModel.findByIdAndUpdate(
         { _id: user_id },
@@ -306,7 +309,7 @@ class UserRepository {
     } catch (error) {}
   }
 
-  async fetchBookings(user_id: string) {
+  async fetchBookings(user_id: string): Promise<IBooking[]> {
     const allBookings = await this.bookingModel.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(user_id) } },
       {
@@ -377,7 +380,7 @@ class UserRepository {
     return allBookings;
   }
 
-  async FetchBooking(bookingId: string) {
+  async fetchBooking(bookingId: string): Promise<IBooking | null> {
     try {
       const bookingData = await this.bookingModel.findById(bookingId);
       return bookingData;
@@ -387,7 +390,7 @@ class UserRepository {
     }
   }
 
-  async cancelNotification(bookingDetails: IBooking) {
+  async cancelNotification(bookingDetails: IBooking): Promise<{ trainerNotification: INotification; userNotification: INotification }> {
     if (!bookingDetails.trainerId || !bookingDetails.userId) {
       throw new Error("Trainer ID or User ID is missing.");
     }
@@ -458,7 +461,7 @@ class UserRepository {
     selectedRating: number,
     userId: string,
     trainerId: string
-  ) {
+  ): Promise<any> {
     try {
       const data = {
         userId: new mongoose.Types.ObjectId(userId),
@@ -478,7 +481,7 @@ class UserRepository {
     reviewComment: string,
     selectedRating: number,
     userReviewId: string
-  ) {
+  ): Promise<any> {
     try {
       const review = await this.reviewModel.findByIdAndUpdate(
         userReviewId,
@@ -491,7 +494,7 @@ class UserRepository {
     }
   }
 
-  async getReview(trainer_id: string) {
+  async getReview(trainer_id: string): Promise<any[]>  {
     try {
       const reviews = await this.reviewModel.aggregate([
         {
@@ -534,7 +537,7 @@ class UserRepository {
     }
   }
 
-  async getAvgReviewsRating(trainer_id: string) {
+  async getAvgReviewsRating(trainer_id: string): Promise<any>  {
     try {
       const avgRatingAndReivews = await this.reviewModel.aggregate([
         {
@@ -563,7 +566,7 @@ class UserRepository {
     }
   }
 
-  async findBookings(user_id: string, trainer_id: string) {
+  async findBookings(user_id: string, trainer_id: string): Promise<IBooking | null> {
     try {
       const bookingData = await this.bookingModel.findOne({
         userId: user_id,
@@ -577,7 +580,7 @@ class UserRepository {
     }
   }
 
-  async fetchNotifications(userId: string) {
+  async fetchNotifications(userId: string): Promise<any> {
     try {
       const notificationsDoc = await this.notificationModel.findOne({
         receiverId: userId,
@@ -596,7 +599,7 @@ class UserRepository {
     }
   }
 
-  async deleteUserNotifications(userId: string) {
+  async deleteUserNotifications(userId: string): Promise<any> {
     try {
       await this.notificationModel.deleteOne({ receiverId: userId });
     } catch (error) {

@@ -1,7 +1,7 @@
 // trainerRepository.js
 
 import { ISession, ITrainer } from "../interface/trainer_interface";
-import { IOtp } from "../interface/common";
+import { IBooking, IOtp, IUser } from "../interface/common";
 import SpecializationModel from "../models/specializationModel";
 import TrainerModel from "../models/trainerModel";
 import OtpModel from "../models/otpModel";
@@ -15,7 +15,9 @@ import UserModel from "../models/userModel";
 import WalletModel, { ITransaction } from "../models/walletModel";
 import NotificationModel from "../models/notificationModel";
 
-class TrainerRepository {
+import { ITrainerRepository } from "../interface/trainer/Trainer.repository.interface";
+
+class TrainerRepository implements ITrainerRepository {
   private specializationModel = SpecializationModel;
   private trainerModel = TrainerModel;
   private otpModel = OtpModel;
@@ -36,11 +38,16 @@ class TrainerRepository {
 
   async existsTrainer(email: string): Promise<ITrainer | null> {
     try {
-      return await this.trainerModel.findOne({ email });
+      // Attempt to find the trainer by email
+      const trainer = await this.trainerModel.findOne({ email });
+      return trainer;
     } catch (error) {
-      throw error;
+      // Log or handle the error more gracefully if needed
+      console.error(`Error checking if trainer exists with email: ${email}`, error);
+      throw new Error('Error checking trainer existence.');
     }
   }
+  
 
   async saveOTP(email: string, OTP: string, OTPExpiry: Date): Promise<void> {
     try {
@@ -86,18 +93,18 @@ class TrainerRepository {
     }
   }
 
-  async deleteOtpById(otpId?: mongoose.Types.ObjectId): Promise<void> {
-    try {
-      if (!otpId) {
-        throw new Error("OTP ID is undefined");
-      }
-      await this.otpModel.findByIdAndDelete(otpId.toString());
-      console.log(`OTP with ID ${otpId} deleted successfully.`);
-    } catch (error) {
-      console.error("Error in deleting OTP:", error);
-      throw error;
+async deleteOtpById(otpId?: string): Promise<void> {
+  try {
+    if (!otpId) {
+      throw new Error("OTP ID is undefined");
     }
+    await this.otpModel.findByIdAndDelete(new mongoose.Types.ObjectId(otpId));
+    console.log(`OTP with ID ${otpId} deleted successfully.`);
+  } catch (error) {
+    console.error("Error in deleting OTP:", error);
+    throw error;
   }
+}
 
   async findTrainer(email: string): Promise<ITrainer | null> {
     try {
@@ -143,7 +150,7 @@ class TrainerRepository {
     }
   }
 
-  async getTrainerStatus(trainerId: string) {
+  async getTrainerStatus(trainerId: string) : Promise<any>  {
     try {
       const trainer = await this.trainerModel.findById(trainerId).select("kycStatus");
       if (!trainer) {
@@ -187,7 +194,7 @@ class TrainerRepository {
   }
   
 
-  async updateKycStatus(trainerId: string) {
+  async updateKycStatus(trainerId: string): Promise<any>  {
     try {
       const updatedTrainer = await this.trainerModel.findByIdAndUpdate(
         trainerId,
@@ -200,12 +207,14 @@ class TrainerRepository {
       } else {
         console.log("Trainer not found with the given ID:", trainerId);
       }
+      return updatedTrainer;
     } catch (error) {
       console.error("Error removing KYC status field:", error);
+      throw new Error("Failed to update KYC status"); 
     }
   }
 
-  async fetchTrainer(trainer_id: string) {
+  async fetchTrainer(trainer_id: string): Promise<any> {
     try {
       const trainerData = await this.trainerModel.aggregate([
         {
@@ -235,7 +244,7 @@ class TrainerRepository {
     }
   }
 
-  async updateTrainerData(trainer_id: string) {
+  async updateTrainerData(trainer_id: string): Promise<ITrainer> {
     try {
       const existingTrainer = await this.trainerModel.findById(trainer_id);
       if (!existingTrainer) {
@@ -248,11 +257,13 @@ class TrainerRepository {
     }
   }
 
-  async fetchSpec(traienr_id: string) {
+  async fetchSpec(traienr_id: string): Promise<any> {
     try {
       const specializations = await this.trainerModel.findById({ _id: traienr_id }).populate("specializations");
-      return specializations?.specializations;
-    } catch (error) {}
+      return specializations?.specializations  || [];
+    } catch (error) {
+      throw new Error("Failed to fetch specializations");
+    }
   }
 
   async fetchRejectionData(trainerId: string) {
@@ -267,61 +278,68 @@ class TrainerRepository {
     }
   }
 
-  async createMultipleSessions(sessions: ISession[]) {
-    try {
-      for (const session of sessions) {
-        const allSessions = await this.sessionModel.find({
-          trainerId: session.trainerId,
-        });
-        const hasConflict = allSessions.some((existingSession) => {
-          const existingStartDate = moment(existingSession.startDate);
-          const existingEndDate = existingSession.endDate
-            ? moment(existingSession.endDate)
-            : existingStartDate;
+    async createMultipleSessions(sessions: ISession[]) : Promise<ISession[]> {
+      try {
+        for (const session of sessions) {
+          const allSessions = await this.sessionModel.find({
+            trainerId: session.trainerId,
+          });
+          const hasConflict = allSessions.some((existingSession) => {
+            const existingStartDate = moment(existingSession.startDate);
+            const existingEndDate = existingSession.endDate
+              ? moment(existingSession.endDate)
+              : existingStartDate;
 
-          const existingStartTime = moment(existingSession.startTime, "HH:mm");
-          const existingEndTime = moment(existingSession.endTime, "HH:mm");
+            const existingStartTime = moment(existingSession.startTime, "HH:mm");
+            const existingEndTime = moment(existingSession.endTime, "HH:mm");
 
-          const newStartDate = moment(session.startDate);
-          const newEndDate = session.endDate
-            ? moment(session.endDate)
-            : newStartDate;
+            const newStartDate = moment(session.startDate);
+            const newEndDate = session.endDate
+              ? moment(session.endDate)
+              : newStartDate;
 
-          const newStartTime = moment(session.startTime, "HH:mm");
-          const newEndTime = moment(session.endTime, "HH:mm");
+            const newStartTime = moment(session.startTime, "HH:mm");
+            const newEndTime = moment(session.endTime, "HH:mm");
 
-          const dateRangeOverlaps =
-            newStartDate.isSameOrBefore(existingEndDate) &&
-            newEndDate.isSameOrAfter(existingStartDate);
-          const timeRangeOverlaps =
-            newStartTime.isBefore(existingEndTime) &&
-            newEndTime.isAfter(existingStartTime);
+            const dateRangeOverlaps =
+              newStartDate.isSameOrBefore(existingEndDate) &&
+              newEndDate.isSameOrAfter(existingStartDate);
+            const timeRangeOverlaps =
+              newStartTime.isBefore(existingEndTime) &&
+              newEndTime.isAfter(existingStartTime);
 
-          return dateRangeOverlaps && timeRangeOverlaps;
-        });
+            return dateRangeOverlaps && timeRangeOverlaps;
+          });
 
-        if (hasConflict)
-          throw new Error(
-            `Time conflict detected for session on ${session.startDate}`
-          );
+          if (hasConflict)
+            throw new Error(
+              `Time conflict detected for session on ${session.startDate}`
+            );
 
-        // Validate price as a number
-        session.price = Number(session.price);
-        if (isNaN(session.price)) throw new Error("Invalid session price.");
+          // Validate price as a number
+          session.price = Number(session.price);
+          if (isNaN(session.price)) throw new Error("Invalid session price.");
+        }
+
+        // Insert sessions in batch and retrieve the inserted documents
+        const createdSessions = await this.sessionModel.insertMany(sessions, {
+          ordered: true,
+        })
+
+         // Populate specializationId after inserting
+        const populatedSessions = await this.sessionModel
+        .find({ _id: { $in: createdSessions.map((s) => s._id) } })
+        .populate("specializationId");
+
+
+        return populatedSessions;
+      } catch (error) {
+        console.error("Error creating multiple sessions:", error);
+        throw error;
       }
-
-      // Insert sessions in batch and retrieve the inserted documents
-      const createdSessions = await this.sessionModel.insertMany(sessions, {
-        ordered: true,
-      });
-      return createdSessions;
-    } catch (error) {
-      console.error("Error creating multiple sessions:", error);
-      throw error;
     }
-  }
 
-  async createNewSession(sessionData: ISession) {
+  async createNewSession(sessionData: ISession): Promise<ISession> {
     try {
       const trainer = await this.trainerModel.findById(sessionData.trainerId);
       if (!trainer) throw new Error("Trainer not found.");
@@ -389,7 +407,7 @@ class TrainerRepository {
     }
   }
 
-  async fetchSessionData(trainer_id: string) {
+  async fetchSessionData(trainer_id: string): Promise<ISession[]> {
     try {
       const sesseionData = await this.sessionModel.find({ trainerId: trainer_id,}).populate("specializationId").sort({ createdAt: -1 });
       return sesseionData;
@@ -398,18 +416,18 @@ class TrainerRepository {
     }
   }
 
-  async deleteSession(session_id: string) {
+  async deleteSession(session_id: string): Promise<boolean> {
     try {
       const deletedSchedule = await this.sessionModel.findByIdAndDelete(
         session_id
       );
-      return deletedSchedule;
+      return true;
     } catch (error) {
       throw error;
     }
   }
 
-  async fetchBookingDetails(trainer_id: string) {
+  async fetchBookingDetails(trainer_id: string): Promise<IBooking[]>  {
     try {
       const bookingDetails = await this.bookingModel.aggregate([
         { $match: { trainerId: new mongoose.Types.ObjectId(trainer_id) } },
@@ -519,7 +537,7 @@ class TrainerRepository {
     }
   }
 
-  async fetchUeserDetails(userId: string) {
+  async fetchUeserDetails(userId: string): Promise<IUser | null>  {
     try {
       const userData = await UserModel.findById(userId);
       return userData;
@@ -528,7 +546,7 @@ class TrainerRepository {
     }
   }
 
-  async getSession(sessionId: string) {
+  async getSession(sessionId: string): Promise<any>  {
     try {
       return await this.sessionModel.findById(sessionId, {isSingleSession:false})
     } catch (error) {
@@ -536,7 +554,7 @@ class TrainerRepository {
     }
   }
   
-  async updateSessionData(sessionId: string, sessionCount: number) {
+  async updateSessionData(sessionId: string, sessionCount: number): Promise<ISession> {
     try {
       const session = await this.sessionModel.findByIdAndUpdate(
         sessionId,
@@ -554,9 +572,9 @@ class TrainerRepository {
     }
   }
   
-  
+  //-
 
-  async updateSessionStatus(bookingId: string) {
+  async updateSessionStatus(bookingId: string): Promise<any> {
     try {
       const bookingDetails = await this.bookingModel.findByIdAndUpdate(
         { _id: bookingId },
@@ -605,7 +623,7 @@ class TrainerRepository {
     }
   }
 
-  async fetchWalletData(trainer_id: string) {
+  async fetchWalletData(trainer_id: string): Promise<any> {
     try {
       const walletData = await this.walletModel.findOne({
         trainerId: trainer_id,
@@ -614,7 +632,7 @@ class TrainerRepository {
     } catch (error) {}
   }
 
-  async withdrawMoney(trainer_id: string, amount: number) {
+  async withdrawMoney(trainer_id: string, amount: number): Promise<any> {
     try {
       const wallet = await this.walletModel.findOne({ trainerId: trainer_id });
       if (!wallet) {
@@ -640,7 +658,7 @@ class TrainerRepository {
     }
   }
 
-async addPrescription(bookingId: string, prescriptions: string) {
+async addPrescription(bookingId: string, prescriptions: string): Promise<any> {
   try {
     const prescriptionInfo = await this.bookingModel.findByIdAndUpdate(
       bookingId,
@@ -662,7 +680,7 @@ async addPrescription(bookingId: string, prescriptions: string) {
   }
 }
 
-  async fetchNotifications(trainerId: string) {
+  async fetchNotifications(trainerId: string): Promise<any> {
     try {
       const notificationsDoc = await this.notificationModel.findOne({ receiverId: trainerId });
       if (notificationsDoc && notificationsDoc.notifications) {
@@ -678,7 +696,7 @@ async addPrescription(bookingId: string, prescriptions: string) {
     }
   }
 
-  async deleteTrainerNotifications(trainerId: string) {
+  async deleteTrainerNotifications(trainerId: string): Promise<void> {
     try {
       await this.notificationModel.deleteOne({receiverId: trainerId})
     } catch (error) {
@@ -687,7 +705,7 @@ async addPrescription(bookingId: string, prescriptions: string) {
     }
   }
 
-  async updatePrescriptionContect(bookingId: string, newPrescription: string) {
+  async updatePrescriptionContect(bookingId: string, newPrescription: string): Promise<void> {
     try {
      const data = await this.bookingModel.findByIdAndUpdate(bookingId, {prescription: newPrescription})
     } catch (error) {
@@ -696,7 +714,7 @@ async addPrescription(bookingId: string, prescriptions: string) {
     }
   }
 
-  async fetchUserBooking(bookingId: string) {
+  async fetchUserBooking(bookingId: string): Promise<any> {
     try {
       const bookingDetails = await this.bookingModel.aggregate([
         { $match: { _id: new mongoose.Types.ObjectId(bookingId) } },

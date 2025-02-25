@@ -1,14 +1,14 @@
-import express from 'express'
-import MessageController from '../controllers/messageController'
+import express from "express";
+import MessageController from "../controllers/messageController";
+import messageService from "../services/messageService";
 
-const router = express.Router()
+const router = express.Router();
 
+const messageController = new MessageController(messageService); 
 
-const messageController = new MessageController() 
+router.get("/call-history/:trainerId", (req, res) => messageController.getCallHistory(req, res));
+router.get("/call-history-user/:userId", (req, res) => messageController.getCallHistoryUser(req, res));
+router.get("/:token/:id", (req, res) => messageController.getMessage(req, res));
+router.post("/send", (req, res) => messageController.sendMessage(req, res));
 
-router.get('/call-history/:trainerId/', messageController.getCallHistory)
-router.get('/call-history-user/:userId/', messageController.getCallHistoryUser)
-router.get('/:token/:id', messageController.getMessage)
-router.post('/send',  messageController.sendMessage)
-
-export default router
+export default router;

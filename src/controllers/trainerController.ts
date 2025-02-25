@@ -1,16 +1,17 @@
 // trainerController.ts
 import { NextFunction, Request, Response } from "express";
-import TrainerService from "../services/trainerServices";
+// import TrainerService from "../services/trainerServices";
+import {ITrainerService} from '../../src/interface/trainer/Trainer.service.interface'
 import { ITrainer } from "../interface/trainer_interface";
 import { deleteFromCloudinary, uploadToCloudinary } from "../config/cloudinary";
 class TrainerController {
-  private trainerService: TrainerService;
+  private trainerService: ITrainerService;
 
-  constructor(trainerService: TrainerService) {
+  constructor(trainerService: ITrainerService) {
     this.trainerService = trainerService;
   }
 
-  async getAllSpecializations(req: Request, res: Response, next: NextFunction) {
+  async getAllSpecializations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       console.log('hit controller');
       
@@ -21,7 +22,7 @@ class TrainerController {
     }
   }
 
-  async registerTrainer(req: Request, res: Response, next: NextFunction) {
+  async registerTrainer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trainerData: ITrainer = req.body;
       const trainer = await this.trainerService.registerTrainer(trainerData);
@@ -42,7 +43,7 @@ class TrainerController {
     }
   }
 
-  async verifyOtp(req: Request, res: Response, next:NextFunction) {
+  async verifyOtp(req: Request, res: Response, next:NextFunction): Promise<void> {
     try {
       const { trainerData, otp } = req.body;
       await this.trainerService.verifyOTP(trainerData, otp);
@@ -113,7 +114,7 @@ class TrainerController {
     }
   }
 
-  async refreshToken(req: Request, res: Response, next: NextFunction) {
+  async refreshToken(req: Request, res: Response, next: NextFunction) : Promise<void>{
     const trainer_refresh_token = req.cookies?.trainer_refresh_token;
     if (!trainer_refresh_token) {
       res.status(403).json({ message: "Refresh token not found" });
@@ -149,7 +150,7 @@ class TrainerController {
   }
   
 
-  async logoutTrainer(req: Request, res: Response) {
+  async logoutTrainer(req: Request, res: Response): Promise<void> {
     try {
       res.clearCookie("trainer_refresh_token", {
         httpOnly: true,
@@ -162,7 +163,7 @@ class TrainerController {
     }
   }
 
-  async trainerKycStatus(req: Request, res: Response, next: NextFunction) {
+  async trainerKycStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trainerId = req.params.trainer_id;
       const kycStatus = await this.trainerService.kycStatus(trainerId);
@@ -172,7 +173,7 @@ class TrainerController {
     }
   }
 
-  async resubmitkyc(req: Request, res: Response) {
+  async resubmitkyc(req: Request, res: Response) : Promise<void>{
     try {
       const trainer_id = req.params.trainer_id;
       await this.trainerService.updateKycStatus(trainer_id);
@@ -180,7 +181,7 @@ class TrainerController {
     } catch (error) {}
   }
 
-  async getTrainer(req: Request, res: Response, next: NextFunction) {
+  async getTrainer(req: Request, res: Response, next: NextFunction) : Promise<void>{
     try {
       const trainer_id = req.params.trainer_id;
       const trainerData = await this.trainerService.findTrainer(trainer_id);
@@ -192,13 +193,13 @@ class TrainerController {
     }
   }
 
-  async updateTrainer(req: Request, res: Response, next: NextFunction) {
+  async updateTrainer(req: Request, res: Response, next: NextFunction) : Promise<void>{
     try {
       const trainer_id = req.params.trainer_id;
       const trainerData = req.body;
       const existingTrainerProfile = await this.trainerService.fetchTrainer(trainer_id)
-      if(existingTrainerProfile) {
-         await deleteFromCloudinary(existingTrainerProfile)
+      if(existingTrainerProfile?.profileImage) {
+         await deleteFromCloudinary(existingTrainerProfile.profileImage)
       }
       const documents: { [key: string]: string | undefined } = {};
       if (req.file) {
@@ -223,7 +224,7 @@ class TrainerController {
   }
   
 
-  async fetchSpecialization(req: Request, res: Response, next: NextFunction) {
+  async fetchSpecialization(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trainer_id = req.params.trainer_id
       const specializations = await this.trainerService.fetchSpec(trainer_id)  
@@ -233,7 +234,7 @@ class TrainerController {
     }
   }
 
-  async fetchRejectionReason(req: Request, res: Response, next: NextFunction) {
+  async fetchRejectionReason(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trainer_id = req.params.trainer_id;
       const rejectionData = await this.trainerService.fetchRejectionData(
@@ -309,10 +310,10 @@ class TrainerController {
     }
   }
 
-  async getSessionSchedules(req: Request, res: Response, next: NextFunction) {
+  async getSessionSchedules(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trainer_id = req.params.trainer_id;
-      const sheduleData = await this.trainerService.getSessionShedules(
+      const sheduleData = await this.trainerService.getSessionSchedules(
         trainer_id
       );
       res.status(200).json({ message: "Session data feched sucessfully", sheduleData });
@@ -321,7 +322,7 @@ class TrainerController {
     }
   }
 
-  async deleteSessionSchedule(req: Request, res: Response) {
+  async deleteSessionSchedule(req: Request, res: Response): Promise<void> {
     let session_id = req.params.session_id;
     const deletedSchedule = await this.trainerService.deleteSession(session_id);
     res.status(200).json({
@@ -330,7 +331,7 @@ class TrainerController {
     });
   }
 
-  async fetchBookingDetails(req: Request, res: Response, next: NextFunction) {
+  async fetchBookingDetails(req: Request, res: Response, next: NextFunction) : Promise<void>{
     try {
       const trainer_id = req.params.trainer_id;
       const bookingDetails = await this.trainerService.getBookingDetails(
@@ -342,8 +343,9 @@ class TrainerController {
     }
   }
 
-  async fetchUser(req: Request, res: Response, next: NextFunction) {
+  async fetchUser(req: Request, res: Response, next: NextFunction) : Promise<void>{
     try {
+
       const userData = await this.trainerService.fetchUser(req.params.user_id)
       res.status(200).json(userData)
     } catch (error) {
@@ -351,7 +353,7 @@ class TrainerController {
     }
   }
 
-  async getWalletData(req: Request, res: Response, next: NextFunction) {
+  async getWalletData(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const trinerId = req.params.trainer_id
       const walletData = await this.trainerService.getWallet(trinerId)
@@ -361,7 +363,7 @@ class TrainerController {
     }
   }
 
-  async withdraw(req: Request, res: Response, next: NextFunction) {
+  async withdraw(req: Request, res: Response, next: NextFunction) : Promise<void>{
    try {
     const {trainer_id} = req.params
     const {amount} = req.body
@@ -373,7 +375,7 @@ class TrainerController {
    }
   }
 
-  async addPrescriptionInfo(req: Request, res: Response, next: NextFunction) {
+  async addPrescriptionInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const {booking_id} = req.params
       const prescriptions = req.body.data
@@ -384,7 +386,7 @@ class TrainerController {
     }
   }
 
-  async getNotifications(req: Request, res: Response, next: NextFunction) {
+  async getNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { trainer_id } = req.params;
       const notifications = await this.trainerService.getNotifications(trainer_id);
@@ -394,7 +396,7 @@ class TrainerController {
     }
   }
 
-  async clearNotifications(req: Request, res: Response, next: NextFunction) {
+  async clearNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const {trainer_id} = req.params
       await this.trainerService.clearNotifications(trainer_id)
@@ -404,7 +406,7 @@ class TrainerController {
     }
   }
 
-  async updatePrescription(req: Request, res: Response, next: NextFunction) {
+  async updatePrescription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { booking_id } = req.params; 
       const { data: newPrescription } = req.body; 
